@@ -3,10 +3,27 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 
+function loadLocalEnv() {
+  const envFile = path.join(__dirname, '.env');
+  if (!fs.existsSync(envFile)) return;
+
+  for (const line of fs.readFileSync(envFile, 'utf8').split(/\r?\n/)) {
+    const match = line.match(/^\s*([A-Z][A-Z0-9_]*)\s*=\s*(.*?)\s*$/);
+    if (!match || process.env[match[1]] !== undefined) continue;
+    const value = match[2].replace(/^(["'])(.*)\1$/, '$2');
+    process.env[match[1]] = value;
+  }
+}
+
+loadLocalEnv();
+
 const PORT = Number(process.env.PORT) || 3000;
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const DATA_DIR = path.join(__dirname, 'data');
 const MESSAGES_FILE = path.join(DATA_DIR, 'messages.json');
+const CONTACT_TO = process.env.CONTACT_TO || 'vallabhavenkatasai@gmail.com';
+const EMAIL_FROM = process.env.EMAIL_FROM;
+const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const MAX_BODY_BYTES = 16 * 1024;
 const RATE_WINDOW_MS = 60 * 1000;
 const RATE_LIMIT = 5;
@@ -78,6 +95,45 @@ function saveMessage(message) {
   fs.writeFileSync(MESSAGES_FILE, JSON.stringify(existing, null, 2));
 }
 
+function escapeHtml(value) {
+  return value.replace(/[&<>'"]/g, (character) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    "'": '&#39;',
+    '"': '&quot;'
+  }[character]));
+}
+
+async function notifyInbox(message) {
+  if (!RESEND_API_KEY || !EMAIL_FROM) {
+    throw new Error('Email delivery is not configured.');
+  }
+
+  const response = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${RESEND_API_KEY}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      from: EMAIL_FROM,
+      to: [CONTACT_TO],
+      reply_to: message.email,
+      subject: `Portfolio enquiry from ${message.name}`,
+      text: `New portfolio enquiry\n\nName: ${message.name}\nEmail: ${message.email}\n\nMessage:\n${message.message}\n\nReceived: ${message.receivedAt}`,
+      html: `<h2>New portfolio enquiry</h2><p><strong>Name:</strong> ${escapeHtml(message.name)}<br><strong>Email:</strong> <a href="mailto:${escapeHtml(message.email)}">${escapeHtml(message.email)}</a></p><p><strong>Message:</strong></p><p>${escapeHtml(message.message).replace(/\n/g, '<br>')}</p><hr><p><small>Received: ${message.receivedAt}</small></p>`
+    }),
+    signal: AbortSignal.timeout(10_000)
+  });
+
+  if (!response.ok) {
+    const providerMessage = await response.text();
+    console.error('Email provider rejected message:', response.status, providerMessage);
+    throw new Error('Email delivery failed.');
+  }
+}
+
 async function handleContact(req, res) {
   const ip = req.socket.remoteAddress || 'unknown';
   if (isRateLimited(ip)) {
@@ -97,17 +153,23 @@ async function handleContact(req, res) {
       return sendJson(res, 400, { error: 'Please enter your name, a valid email, and a message of at least 10 characters.' });
     }
 
-    saveMessage({
+    const contactMessage = {
       id: crypto.randomUUID(),
       name,
       email,
       message,
       receivedAt: new Date().toISOString()
-    });
-    return sendJson(res, 201, { ok: true, message: 'Thanks - your message has been received.' });
+    };
+
+    await notifyInbox(contactMessage);
+    saveMessage(contactMessage);
+    return sendJson(res, 201, { ok: true, message: 'Thanks - your message is on its way to Vallabh.' });
   } catch (error) {
     if (error instanceof SyntaxError) return sendJson(res, 400, { error: 'Invalid request payload.' });
     if (error.message === 'Request is too large.') return sendJson(res, 413, { error: error.message });
+    if (error.message === 'Email delivery is not configured.') {
+      return sendJson(res, 503, { error: 'Contact email is being configured. Please email Vallabh directly for now.' });
+    }
     console.error('Contact API error:', error);
     return sendJson(res, 500, { error: 'Something went wrong. Please email me directly instead.' });
   }

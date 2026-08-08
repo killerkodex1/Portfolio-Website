@@ -8,13 +8,24 @@ A full-stack personal portfolio for Vallabh Venkata Sai Poola. It uses a depende
 2. In this directory, run `npm start`.
 3. Open `http://localhost:3000`.
 
-Contact messages are validated, rate-limited, and saved locally in `data/messages.json`. That file is intentionally excluded from Git.
+## Contact email delivery
+
+Contact messages are validated, rate-limited, emailed to `vallabhavenkatasai@gmail.com`, and saved locally in `data/messages.json` after successful delivery. That file is intentionally excluded from Git.
+
+The project uses [Resend](https://resend.com) for delivery and requires a verified sending domain:
+
+1. Create a Resend account, verify a sending domain, and create an API key.
+2. Copy `.env.example` to `.env`.
+3. Add the `RESEND_API_KEY` and set `EMAIL_FROM` to an address at that verified domain.
+4. Restart the server with `npm start`.
+
+`CONTACT_TO` is preconfigured as `vallabhavenkatasai@gmail.com`. Keep `.env` private; it is excluded from Git.
 
 ## Deploy
 
 The app listens on `process.env.PORT`, so it is ready for a Node-compatible host such as Render, Railway, or Fly.io. Set the start command to `npm start`.
 
-For a production contact workflow, replace `saveMessage()` in `server.js` with an email provider or database integration. Do not commit API keys; use host-managed environment variables.
+For production, set the same three environment variables in your hosting dashboard. Do not commit API keys.
 
 ## GitHub
 

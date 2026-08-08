@@ -10,6 +10,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="/styles.css" />
+    <script>try { document.documentElement.dataset.theme = localStorage.getItem('portfolio-theme') || 'light'; } catch { document.documentElement.dataset.theme = 'light'; }</script>
   </head>
   <body>
     <a class="skip-link" href="#main">Skip to content</a>
@@ -22,7 +23,7 @@
         <a href="#about">About</a>
         <a href="#contact">Contact</a>
       </nav>
-      <a class="header-cta" href="/vallabh-poola-resume.pdf" target="_blank" rel="noopener">Résumé <span aria-hidden="true">↓</span></a>
+      <div class="header-tools"><button class="theme-toggle" type="button" id="theme-toggle" aria-label="Switch to dark theme" aria-pressed="false"><span aria-hidden="true" class="theme-glyph">◐</span><span class="theme-label">Dark</span></button><a class="header-cta" href="/vallabh-poola-resume.pdf" target="_blank" rel="noopener">Résumé <span aria-hidden="true">↓</span></a></div>
     </header>
 
     <main id="main">
