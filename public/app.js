@@ -43,6 +43,9 @@ form.addEventListener('submit', async (event) => {
     if (!response.ok) throw new Error(result.error || 'Unable to send your message.');
     status.className = 'form-status success';
     status.textContent = result.message;
+    if (result.fallback && result.directEmail) {
+      window.location.href = result.directEmail;
+    }
     form.reset();
   } catch (error) {
     status.className = 'form-status error';

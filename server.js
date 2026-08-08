@@ -134,6 +134,22 @@ async function notifyInbox(message) {
   }
 }
 
+function directEmailUrl(message) {
+  const subject = `Portfolio enquiry from ${message.name}`;
+  const body = [
+    'Hello Vallabh,',
+    '',
+    `My name is ${message.name}.`,
+    `You can reply to me at ${message.email}.`,
+    '',
+    'Message:',
+    message.message,
+    '',
+    'Sent from your portfolio website.'
+  ].join('\n');
+  return `mailto:${encodeURIComponent(CONTACT_TO)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+}
+
 async function handleContact(req, res) {
   const ip = req.socket.remoteAddress || 'unknown';
   if (isRateLimited(ip)) {
@@ -161,15 +177,21 @@ async function handleContact(req, res) {
       receivedAt: new Date().toISOString()
     };
 
+    if (!RESEND_API_KEY || !EMAIL_FROM) {
+      return sendJson(res, 202, {
+        ok: true,
+        fallback: true,
+        directEmail: directEmailUrl(contactMessage),
+        message: 'Opening your email app with your message ready to send.'
+      });
+    }
+
     await notifyInbox(contactMessage);
     saveMessage(contactMessage);
     return sendJson(res, 201, { ok: true, message: 'Thanks - your message is on its way to Vallabh.' });
   } catch (error) {
     if (error instanceof SyntaxError) return sendJson(res, 400, { error: 'Invalid request payload.' });
     if (error.message === 'Request is too large.') return sendJson(res, 413, { error: error.message });
-    if (error.message === 'Email delivery is not configured.') {
-      return sendJson(res, 503, { error: 'Contact email is being configured. Please email Vallabh directly for now.' });
-    }
     console.error('Contact API error:', error);
     return sendJson(res, 500, { error: 'Something went wrong. Please email me directly instead.' });
   }
