@@ -1,0 +1,14 @@
+{
+  "name": "vallabh-3d-portfolio",
+  "version": "1.0.0",
+  "description": "A full-stack, 3D portfolio for Vallabh Venkata Sai Poola.",
+  "private": true,
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
